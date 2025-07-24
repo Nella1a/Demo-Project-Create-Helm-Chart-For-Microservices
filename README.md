@@ -90,3 +90,9 @@ Before you begin, it’s important to understand the following:
 - Use the assigned NodePort (30007) to access the application:
   ```ccp
   http://<worker-node-ip>:30007
+
+### Screenshots
+<img width="800" height="464" alt="Screenshot 2025-07-24 at 08 39 52" src="https://github.com/user-attachments/assets/5e2d3888-fd3e-4eed-b8ab-6ad0961687d3" />
+<img width="800" height="545" alt="Screenshot 2025-07-24 at 08 54 00" src="https://github.com/user-attachments/assets/ac76f12c-b868-4878-9bb5-d9ac2e59ddc3" />
+
+
