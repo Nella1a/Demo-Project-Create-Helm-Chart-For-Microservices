@@ -1,98 +1,161 @@
-# Deploy a Microservices Application to a Kubernetes Cluster
+# Deploy Microservices with Helmfile (on Linode)
 
 ## Description
 
-This project demonstrates how to deploy the [Online Boutique demo application](https://github.com/GoogleCloudPlatform/microservices-demo), a cloud-native microservices application, into a Kubernetes cluster hosted on [Linode](https://www.linode.com/de/).
+This project demonstrates how to deploy the [Online Boutique demo application](https://github.com/GoogleCloudPlatform/microservices-demo) using Helmfile.
 
-Before you begin, it’s important to understand the following:
+## Prerequisites
 
-- Which microservices are included in the deployment  
-- How the services are connected  
-- What dependencies each service has (e.g., databases, third-party services)  
-- Which microservice is publicly accessible (i.e., the entry point to the cluster)  
-- A visual diagram of service interactions is recommended for better understanding  
+- A Linode account with access to a configured and running Kubernetes cluster.[Follow this guide for detailed setup steps](https://github.com/Nella1a/Demo-project-Deploy-Microservices-Application)
 
----
+### Create Helm Charts
 
-## Setup
+#### Microservices
 
-### Prerequisites
+```bash
+helm create <name-of-chart>
 
-- A Linode account with access to create a Kubernetes cluster  
-- Minikube installed and running on your local machine for local testing  
-  - Refer to the [Minikube official documentation](https://minikube.sigs.k8s.io/docs/start/) for installation instructions  
-  - Minikube requires either a container runtime (e.g., Docker) or a virtual machine manager (e.g., VirtualBox). See the [Minikube drivers documentation](https://minikube.sigs.k8s.io/docs/drivers/) for details  
-  - To start Minikube with Docker as the preferred driver:
+```
 
-    ```bash
-    minikube start --driver=docker
-    ```
+If the command is successful, a new auto-generated folder named [name-of-chart] will appear in your root directory.
+This folder includes subdirectories (charts, templates) and files such as .helmignore, Chart.yaml, and values.yaml.
 
-- `kubectl` installed for interacting with both local and cloud-based Kubernetes clusters  
-  > Note: `kubectl` is included with Minikube by default, so a separate installation may not be necessary  
+Basic Structure of a Helm Chart
 
----
+- Chart.yaml: Contains chart metadata.
+- charts/: Holds any dependency charts required by this chart.
+- .helmignore: Specifies which files and folders Helm should ignore when packaging.
+- templates/: The core of the Helm chart. This is where Kubernetes YAML templates live.
+- values.yaml: Stores values that will populate your template files.
 
-## Deployment Steps
+Customize Template Files
+Create your own templates from scratch:
 
-### 1. Create Deployment and Service YAMLs (Optional)
+1. Remove all files inside the templates/ folder except deployment.yaml and service.yaml.
 
-- A ready-to-use `config.yaml` file is already provided for deployment 
-- If needed, you can use the included skeleton file `config_skeleton.yaml` to create custom Deployments and Services for each microservice  
-- Make sure to define correct resource, labels, ports, and dependencies
+2. Clear the contents of deployment.yaml, service.yaml, and values.yaml.
 
-### 2. Launch a Kubernetes Cluster on Linode
+Define Helm Template Placeholders
 
-- Log in to your Linode account  
-- Create a new Kubernetes cluster:
-  - Choose a name  
-  - Select your nearest region  
-  - Add 3 small nodes (shared CPU)  
-- Once the cluster is ready and nodes are running, download the **kubeconfig** file (used to authenticate and connect to your cluster)
+- Use placeholder syntax for values:
 
-### 3. Configure Access to the Cluster
+```yaml
+{ { .Values.<variableName> } }
+```
 
-- Set the proper permissions on the kubeconfig file:
+For environment variables
 
-  ```bash
-  chmod 400 <your-kubernetesconfig-file.yaml>
+```yaml
+value: { { .Values.<envVar> | quote } }
+```
 
-- Export the kubeconfig file as an environment variable:
-  ```bash
-  export KUBECONFIG=<your-kubernetesconfig-file.yaml>
-- Test the connection:
-  ```bash
-  kubectl get nodes
-  
-### 4. Deploy Microservices to the Cluster
+Set Template Values
+Define your variables in the values.yaml file.
 
-- Create a namespace:
-  ```bash
-  kubectl create namespace microservices
-  
-- Deploy the microservices into the namespace:
-  ```bash
-  kubectl apply -f config.yaml -n microservices
+Validate Helm Chart
 
-### 5. Verify the Deployment
+- Locally render templates:
 
-- Check that all pods are running:
-  ```bash
-  kubectl get pods -n microservices
-  
-- Check available services:
-  ```bash
-  kubectl get svc -n microservices
+```bash
+helm template -f <service-name-values.yaml> <name-of-chart>
+```
 
-### 6. Access the Application in a Browser
-- Go to your Linode Kubernetes dashboard
-- Choose a public IP from one of the worker nodes
-- Use the assigned NodePort (30007) to access the application:
+- Or simulate an install (connects to cluster for validation):
+
+```bash
+helm install --dry-run -f <service-name-values.yaml> <release-name> <name-of-chart>
+```
+
+helm template only renders locally. --dry-run performs validation with the Kubernetes API.
+
+Lint Helm Chart
+Check for syntax issues and best practices:
+
+```bash
+helm lint
+```
+
+- ERROR: Will block installation.
+- WARNING: May break conventions or recommendations.
+
+Install Helm Chart
+
+```bash
+    helm install -f <service-name-values.yaml> <release-name> <chart-name>
+```
+
+<release-name> is the name of the deployed application in the cluster.
+
+#### Redis (Third-party Application)
+
+Create a chart for Redis:
+
+```bash
+helm create redis
+```
+
+As before, remove all files in the templates/ folder except deployment.yaml and service.yaml, and build your templates from scratch.
+
+### Deploy Microservices with Helmfile
+
+Option 1: Install Charts Individually Using a Script
+Install each service manually or use a script file, e.g., install.sh:
+
+```bash
+helm install -f values/<redis-values.yaml> rediscart charts/redis
+```
+
+Make the script executable:
+
+```bash
+chmod u+x install.sh
+```
+
+Run the script:
+
+````bash
+./install.sh
+```
+
+Option 2: Use Helmfile
+
+- Define the desired state of your cluster in a single YAML file.
+- Manage multiple Helm releases with custom values for each environment or application.
+
+
+Install Helmfile
+
+```bash
+brew install helmfile
+```
+
+
+
+Deploy Using Helmfile
+
+```bash
+helmfile sync
+```
+
+- Visit your Linode Kubernetes dashboard.
+- Use the public IP of the NodeBalancer to access the application:
+
+
   ```ccp
-  http://<worker-node-ip>:30007
-
-### Screenshots
-<img width="800" height="464" alt="Screenshot 2025-07-24 at 08 39 52" src="https://github.com/user-attachments/assets/5e2d3888-fd3e-4eed-b8ab-6ad0961687d3" />
-<img width="800" height="545" alt="Screenshot 2025-07-24 at 08 54 00" src="https://github.com/user-attachments/assets/ac76f12c-b868-4878-9bb5-d9ac2e59ddc3" />
+  http://<NodeBalancer-public-ip>:80
+  ```
 
 
+Remove/Delete services:
+
+```bash
+helmfile destroy
+```
+
+Where to host the Helm Charts?
+You have two options:
+
+1. Monorepo: Include Helm charts with your application code in a single Git repository.
+2. Separate Repository (Preferred): Maintain Helm charts in a dedicated Git repository for better modularity and version control.
+
+````
